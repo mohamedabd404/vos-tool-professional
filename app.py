@@ -22,7 +22,7 @@ try:
     
     if is_streamlit_cloud:
         READYMODE_AVAILABLE = False
-        st.info("🌐 Running on Streamlit Cloud - ReadyMode automation disabled. Upload & Analyze functionality is fully available.")
+        st.info("🌐 **Running on Streamlit Cloud** - For security reasons, automated call downloading is disabled. Please use the **Upload & Analyze** tab to process your MP3 files directly.")
     else:
         from automation.download_readymode_calls import download_all_call_recordings
         READYMODE_AVAILABLE = True
@@ -791,7 +791,15 @@ def main():
                 st.error("Please enter an agent name.")
             else:
                 if not READYMODE_AVAILABLE:
-                    st.error("ReadyMode automation is not available in this environment. Please use the Upload & Analyze tab to process local audio files.")
+                    st.warning("🔒 **ReadyMode Automation Unavailable**")
+                    st.markdown("""
+                    **Alternative Options:**
+                    - 📁 **Upload & Analyze Tab**: Upload your MP3 files directly for analysis
+                    - 💾 **Manual Export**: Export MP3s from ReadyMode and upload them here
+                    - 🏢 **Enterprise Setup**: Contact your administrator for full ReadyMode integration
+                    
+                    The core audio analysis functionality is fully available via file upload!
+                    """)
                 else:
                     status_text, progress_bar, update_progress = _create_progress_tracker()
                     with st.spinner("Downloading and analyzing agent recordings..."):
@@ -1001,7 +1009,15 @@ def main():
                 st.error("Please enter a campaign name.")
             else:
                 if not READYMODE_AVAILABLE:
-                    st.error("ReadyMode automation is not available in this environment. Please use the Upload & Analyze tab to process local audio files.")
+                    st.warning("🔒 **ReadyMode Automation Unavailable**")
+                    st.markdown("""
+                    **Alternative Options:**
+                    - 📁 **Upload & Analyze Tab**: Upload your MP3 files directly for analysis
+                    - 💾 **Manual Export**: Export MP3s from ReadyMode and upload them here
+                    - 🏢 **Enterprise Setup**: Contact your administrator for full ReadyMode integration
+                    
+                    The core audio analysis functionality is fully available via file upload!
+                    """)
                 else:
                     status_text, progress_bar, update_progress = _create_progress_tracker()
                     with st.spinner("Downloading and analyzing campaign recordings..."):
