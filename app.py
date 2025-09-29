@@ -7,9 +7,16 @@ import pandas as pd
 import streamlit as st
 
 from analyzer.simple_main import batch_analyze_folder, batch_analyze_folder_fast
-from automation.download_readymode_calls import download_all_call_recordings
 from config import READYMODE_URL, USER_CREDENTIALS
 import os
+
+# Try to import ReadyMode automation, disable if not available (e.g., on Streamlit Cloud)
+try:
+    from automation.download_readymode_calls import download_all_call_recordings
+    READYMODE_AVAILABLE = True
+except ImportError as e:
+    READYMODE_AVAILABLE = False
+    st.warning("ReadyMode automation not available in this environment. Upload & Analyze functionality is still available.")
 
 st.set_page_config(layout="wide", page_title="VOS Tool - Fast Call Auditor")
 
@@ -771,34 +778,43 @@ def main():
             if not agent_name:
                 st.error("Please enter an agent name.")
             else:
-                status_text, progress_bar, update_progress = _create_progress_tracker()
-                with st.spinner("Downloading and analyzing agent recordings..."):
-                    try:
-                        max_samples = int(num_recordings) if num_recordings else 50
+                if not READYMODE_AVAILABLE:
+                    st.error("ReadyMode automation is not available in this environment. Please use the Upload & Analyze tab to process local audio files.")
+                else:
+                    status_text, progress_bar, update_progress = _create_progress_tracker()
+                    with st.spinner("Downloading and analyzing agent recordings..."):
+                        try:
+                            max_samples = int(num_recordings) if num_recordings else 50
 
-                        download_all_call_recordings(
-                            ready_url,
-                            agent=agent_name,
-                            start_date=start_date,
-                            end_date=end_date,
-                            max_samples=max_samples,
-                            update_callback=update_progress,
-                            disposition=selected_dispositions,
-                            min_duration=min_duration,
-                            max_duration=max_duration,
-                            username=None,
-                        )
-                        progress_bar.empty()
-                        status_text.empty()
+                            download_all_call_recordings(
+                                ready_url,
+                                agent=agent_name,
+                                start_date=start_date,
+                                end_date=end_date,
+                                max_samples=max_samples,
+                                update_callback=update_progress,
+                                disposition=selected_dispositions,
+                                min_duration=min_duration,
+                                max_duration=max_duration,
+                                username=None,
+                            )
+                            progress_bar.empty()
+                            status_text.empty()
 
-                        # Analyze downloaded files - Fix path to match download location
-                        today = datetime.now().strftime('%Y-%m-%d')
-                        
-                        # Import USERNAME from download module to match exact path
-                        from automation.download_readymode_calls import USERNAME
-                        
-                        # The download function creates: Recordings/Agent/{USERNAME}/{agent}-{today}/
-                        expected_path = Path(f"Recordings/Agent/{USERNAME}/{agent_name}-{today}")
+                            # Analyze downloaded files - Fix path to match download location
+                            today = datetime.now().strftime('%Y-%m-%d')
+                            
+                            # Import USERNAME from download module to match exact path
+                            if READYMODE_AVAILABLE:
+                                from automation.download_readymode_calls import USERNAME
+                            else:
+                                USERNAME = "default"
+                            
+                            # The download function creates: Recordings/Agent/{USERNAME}/{agent}-{today}/
+                            expected_path = Path(f"Recordings/Agent/{USERNAME}/{agent_name}-{today}")
+                        except Exception as e:
+                            st.error(f"Error during download: {str(e)}")
+                            return
                         
                         st.info(f" Looking for files in: {expected_path}")
                         
@@ -971,35 +987,44 @@ def main():
             if not campaign_name:
                 st.error("Please enter a campaign name.")
             else:
-                status_text, progress_bar, update_progress = _create_progress_tracker()
-                with st.spinner("Downloading and analyzing campaign recordings..."):
-                    try:
-                        max_samples = int(num_recordings) if num_recordings else 50
+                if not READYMODE_AVAILABLE:
+                    st.error("ReadyMode automation is not available in this environment. Please use the Upload & Analyze tab to process local audio files.")
+                else:
+                    status_text, progress_bar, update_progress = _create_progress_tracker()
+                    with st.spinner("Downloading and analyzing campaign recordings..."):
+                        try:
+                            max_samples = int(num_recordings) if num_recordings else 50
 
-                        download_all_call_recordings(
-                            ready_url,
-                            campaign_name=campaign_name,
-                            agent=agent_name if agent_name else None,
-                            start_date=start_date,
-                            end_date=end_date,
-                            max_samples=max_samples,
-                            update_callback=update_progress,
-                            disposition=selected_dispositions,
-                            min_duration=min_duration,
-                            max_duration=max_duration,
+                            download_all_call_recordings(
+                                ready_url,
+                                campaign_name=campaign_name,
+                                agent=agent_name if agent_name else None,
+                                start_date=start_date,
+                                end_date=end_date,
+                                max_samples=max_samples,
+                                update_callback=update_progress,
+                                disposition=selected_dispositions,
+                                min_duration=min_duration,
+                                max_duration=max_duration,
                             username=None,
-                        )
-                        progress_bar.empty()
-                        status_text.empty()
+                            )
+                            progress_bar.empty()
+                            status_text.empty()
 
-                        # Analyze downloaded files - Fix path to match download location
-                        today = datetime.now().strftime('%Y-%m-%d')
-                        
-                        # Import USERNAME from download module to match exact path
-                        from automation.download_readymode_calls import USERNAME
-                        
-                        # The download function creates: Recordings/Campaign/{USERNAME}/{campaign}-{today}/
-                        expected_path = Path(f"Recordings/Campaign/{USERNAME}/{campaign_name}-{today}")
+                            # Analyze downloaded files - Fix path to match download location
+                            today = datetime.now().strftime('%Y-%m-%d')
+                            
+                            # Import USERNAME from download module to match exact path
+                            if READYMODE_AVAILABLE:
+                                from automation.download_readymode_calls import USERNAME
+                            else:
+                                USERNAME = "default"
+                            
+                            # The download function creates: Recordings/Campaign/{USERNAME}/{campaign}-{today}/
+                            expected_path = Path(f"Recordings/Campaign/{USERNAME}/{campaign_name}-{today}")
+                        except Exception as e:
+                            st.error(f"Error during download: {str(e)}")
+                            return
                         
                         st.info(f" Looking for files in: {expected_path}")
                         
