@@ -909,8 +909,6 @@ def main():
                                     )
                             else:
                                 st.info(" No Releasing or Late Hello detected.")
-                    except Exception as e:
-                        st.error(f"Agent audit failed: {e}")
 
     # --- Campaign Audit Tab ---
     with tab_campaign:
@@ -1119,8 +1117,6 @@ def main():
                                     )
                             else:
                                 st.info(" No Releasing or Late Hello detected.")
-                    except Exception as e:
-                        st.error(f"Campaign audit failed: {e}")
 
 if __name__ == "__main__":
     main()
