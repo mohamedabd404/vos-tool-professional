@@ -12,11 +12,23 @@ import os
 
 # Try to import ReadyMode automation, disable if not available (e.g., on Streamlit Cloud)
 try:
-    from automation.download_readymode_calls import download_all_call_recordings
-    READYMODE_AVAILABLE = True
-except ImportError as e:
+    # Check if we're running on Streamlit Cloud by looking for environment indicators
+    import os
+    is_streamlit_cloud = (
+        os.getenv('STREAMLIT_SHARING_MODE') == 'true' or 
+        'streamlit.app' in os.getenv('HOSTNAME', '') or
+        '/mount/src/' in os.getcwd()
+    )
+    
+    if is_streamlit_cloud:
+        READYMODE_AVAILABLE = False
+        st.info("🌐 Running on Streamlit Cloud - ReadyMode automation disabled. Upload & Analyze functionality is fully available.")
+    else:
+        from automation.download_readymode_calls import download_all_call_recordings
+        READYMODE_AVAILABLE = True
+except (ImportError, Exception) as e:
     READYMODE_AVAILABLE = False
-    st.warning("ReadyMode automation not available in this environment. Upload & Analyze functionality is still available.")
+    st.info("ℹ️ ReadyMode automation not available in this environment. Upload & Analyze functionality is fully available.")
 
 st.set_page_config(layout="wide", page_title="VOS Tool - Fast Call Auditor")
 
@@ -805,9 +817,12 @@ def main():
                             today = datetime.now().strftime('%Y-%m-%d')
                             
                             # Import USERNAME from download module to match exact path
-                            if READYMODE_AVAILABLE:
-                                from automation.download_readymode_calls import USERNAME
-                            else:
+                            try:
+                                if READYMODE_AVAILABLE:
+                                    from automation.download_readymode_calls import USERNAME
+                                else:
+                                    USERNAME = "default"
+                            except Exception:
                                 USERNAME = "default"
                             
                             # The download function creates: Recordings/Agent/{USERNAME}/{agent}-{today}/
@@ -1013,9 +1028,12 @@ def main():
                             today = datetime.now().strftime('%Y-%m-%d')
                             
                             # Import USERNAME from download module to match exact path
-                            if READYMODE_AVAILABLE:
-                                from automation.download_readymode_calls import USERNAME
-                            else:
+                            try:
+                                if READYMODE_AVAILABLE:
+                                    from automation.download_readymode_calls import USERNAME
+                                else:
+                                    USERNAME = "default"
+                            except Exception:
                                 USERNAME = "default"
                             
                             # The download function creates: Recordings/Campaign/{USERNAME}/{campaign}-{today}/
