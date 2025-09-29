@@ -1,0 +1,22 @@
+[server]
+# Optimize for Streamlit Cloud free tier
+maxUploadSize = 500
+enableCORS = false
+enableXsrfProtection = false
+headless = true
+
+[client]
+# Reduce client-side memory usage
+showErrorDetails = false
+
+[browser]
+# Optimize browser settings
+gatherUsageStats = false
+
+[theme]
+# Professional dark theme to match app styling
+base = "dark"
+primaryColor = "#58a6ff"
+backgroundColor = "#0d1117"
+secondaryBackgroundColor = "#161b22"
+textColor = "#f0f6fc"

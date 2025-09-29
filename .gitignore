@@ -1,0 +1,37 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Logs and temp files
+logs/
+*.log
+temp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Database files
+vos_audit.db
+
+# FFmpeg binaries and drivers
+ffmpeg/
+chromedriver.exe
+
+# Data and recordings (optional)
+data/
+Recordings/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# VSCode and IDE settings
+.vscode/
+.idea/
