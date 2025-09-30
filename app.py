@@ -823,7 +823,7 @@ def main():
                                 disposition=selected_dispositions,
                                 min_duration=min_duration,
                                 max_duration=max_duration,
-                                username=None,
+                                username=st.session_state.get('username', 'Auditor1'),
                             )
                             progress_bar.empty()
                             status_text.empty()
@@ -831,17 +831,11 @@ def main():
                             # Analyze downloaded files - Fix path to match download location
                             today = datetime.now().strftime('%Y-%m-%d')
                             
-                            # Import USERNAME from download module to match exact path
-                            try:
-                                if READYMODE_AVAILABLE:
-                                    from automation.download_readymode_calls import USERNAME
-                                else:
-                                    USERNAME = "default"
-                            except Exception:
-                                USERNAME = "default"
+                            # Get the logged-in username for path lookup
+                            current_username = st.session_state.get('username', 'Auditor1')
                             
-                            # The download function creates: Recordings/Agent/{USERNAME}/{agent}-{today}/
-                            expected_path = Path(f"Recordings/Agent/{USERNAME}/{agent_name}-{today}")
+                            # The download function creates: Recordings/Agent/{username}/{agent}-{today}/
+                            expected_path = Path(f"Recordings/Agent/{current_username}/{agent_name}-{today}")
                         except Exception as e:
                             st.error(f"Error during download: {str(e)}")
                             return
@@ -1042,7 +1036,7 @@ def main():
                                 disposition=selected_dispositions,
                                 min_duration=min_duration,
                                 max_duration=max_duration,
-                            username=None,
+                                username=st.session_state.get('username', 'Auditor1'),
                             )
                             progress_bar.empty()
                             status_text.empty()
@@ -1050,17 +1044,11 @@ def main():
                             # Analyze downloaded files - Fix path to match download location
                             today = datetime.now().strftime('%Y-%m-%d')
                             
-                            # Import USERNAME from download module to match exact path
-                            try:
-                                if READYMODE_AVAILABLE:
-                                    from automation.download_readymode_calls import USERNAME
-                                else:
-                                    USERNAME = "default"
-                            except Exception:
-                                USERNAME = "default"
+                            # Get the logged-in username for path lookup
+                            current_username = st.session_state.get('username', 'Auditor1')
                             
-                            # The download function creates: Recordings/Campaign/{USERNAME}/{campaign}-{today}/
-                            expected_path = Path(f"Recordings/Campaign/{USERNAME}/{campaign_name}-{today}")
+                            # The download function creates: Recordings/Campaign/{username}/{campaign}-{today}/
+                            expected_path = Path(f"Recordings/Campaign/{current_username}/{campaign_name}-{today}")
                         except Exception as e:
                             st.error(f"Error during download: {str(e)}")
                             return
