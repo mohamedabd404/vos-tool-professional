@@ -132,15 +132,50 @@ def download_all_call_recordings(dialer_url, agent, update_callback=None,
             except:
                 print(f"[!] Campaign '{campaign_name}' not found")
 
-        # Agent Filter
+        # Agent Filter - Enhanced with multiple selection strategies
         if agent and agent.strip().lower() != "any":
             try:
+                print(f"🔍 Attempting to select agent: '{agent}'")
                 dropdown = wait.until(EC.presence_of_element_located((By.ID, "restrict_uid")))
-                Select(dropdown).select_by_visible_text(agent.strip())
+                select = Select(dropdown)
+                
+                # Get all available options for debugging
+                available_options = [opt.text.strip() for opt in select.options]
+                print(f"📋 Available agents in dropdown: {available_options[:5]}...")  # Show first 5
+                
+                # Strategy 1: Try exact match (original method)
+                try:
+                    select.select_by_visible_text(agent.strip())
+                    print(f"✅ Agent selected (exact match): {agent}")
+                except:
+                    print(f"⚠️ Exact match failed, trying partial match...")
+                    
+                    # Strategy 2: Try partial match (case-insensitive)
+                    agent_lower = agent.strip().lower()
+                    matched = False
+                    for option in select.options:
+                        if agent_lower in option.text.strip().lower():
+                            select.select_by_visible_text(option.text.strip())
+                            print(f"✅ Agent selected (partial match): {option.text.strip()}")
+                            matched = True
+                            break
+                    
+                    if not matched:
+                        # Strategy 3: Try by value instead of text
+                        try:
+                            select.select_by_value(agent.strip())
+                            print(f"✅ Agent selected (by value): {agent}")
+                        except:
+                            print(f"❌ Could not select agent '{agent}' - will download all agents")
+                            print(f"💡 Available options: {', '.join(available_options[:10])}")
+                
+                # Wait for page to update after selection
+                time.sleep(2)
                 wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='.mp3']")))
-                print(f"✅ Agent: {agent}")
-            except:
-                print(f"[!] Agent '{agent}' not found")
+                
+            except Exception as e:
+                print(f"[!] Error selecting agent '{agent}': {str(e)}")
+                print(f"⚠️ Continuing with all agents...")
 
         # Disposition Filter (HYBRID: UI interaction)
         if disposition:
