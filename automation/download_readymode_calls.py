@@ -17,13 +17,15 @@ PASSWORD = os.getenv("READYMODE_PASSWORD", "Auditor1@3510")
 
 def get_driver():
     chrome_options = Options()
-    #chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--headless")  # Run Chrome in background (no visible window)
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--ignore-certificate-errors")
     chrome_options.add_argument("--ignore-ssl-errors")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Hide automation detection
+    chrome_options.add_argument("--log-level=3")  # Suppress console logs
     service = Service(executable_path=os.path.join(os.getcwd(), "chromedriver.exe"))
     driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.implicitly_wait(10)
