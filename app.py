@@ -12,13 +12,20 @@ import os
 
 # Try to import ReadyMode automation, disable if not available (e.g., on Streamlit Cloud)
 try:
-    # Check if we're running on Streamlit Cloud by looking for environment indicators
+    # Check deployment environment
     import os
-    is_streamlit_cloud = (
-        os.getenv('STREAMLIT_SHARING_MODE') == 'true' or 
-        'streamlit.app' in os.getenv('HOSTNAME', '') or
-        '/mount/src/' in os.getcwd()
-    )
+    deployment_mode = os.getenv('DEPLOYMENT_MODE', 'auto')
+    
+    if deployment_mode == 'enterprise':
+        # Force enable ReadyMode for enterprise deployments
+        is_streamlit_cloud = False
+    else:
+        # Auto-detect Streamlit Cloud
+        is_streamlit_cloud = (
+            os.getenv('STREAMLIT_SHARING_MODE') == 'true' or 
+            'streamlit.app' in os.getenv('HOSTNAME', '') or
+            '/mount/src/' in os.getcwd()
+        )
     
     if is_streamlit_cloud:
         READYMODE_AVAILABLE = False
