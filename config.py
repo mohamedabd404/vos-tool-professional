@@ -53,6 +53,8 @@ USER_CREDENTIALS = {
     'auditor5': 'res-1897',
     'auditor6': 'res-4783',
     'auditor7': 'res-9264',
+    # Add more users here if needed:
+    # 'username': 'password',
 }
 
 # ────────────── Settings Singleton ──────────────
@@ -96,7 +98,19 @@ class AppSettings:
         self.silent_duration = 4000
 
         # Late hello detection time (in seconds)
-        self.late_hello_time = 4  # Default 4 seconds
+        self.late_hello_time = 5  # Extended to 5 seconds for network delay tolerance
+        
+        # Voice Activity Detection (VAD) sensitivity settings
+        # Lower values = more sensitive (detects fainter speech)
+        # Higher values = less sensitive (rejects more noise)
+        self.vad_energy_threshold = 600  # RMS energy threshold (default: 600, was 800)
+        self.vad_min_speech_duration = 100  # Minimum speech duration in ms (default: 100, was 150)
+        
+        # Sensitivity presets for easy adjustment
+        # 'high' = detects faint/unclear speech (more false positives)
+        # 'medium' = balanced detection (recommended)
+        # 'low' = only clear speech (more false negatives)
+        self.vad_sensitivity = 'medium'  # Options: 'high', 'medium', 'low'
         
     def update_from_ui(self, ui_settings):
         """
@@ -133,6 +147,49 @@ class AppSettings:
     def get_purpose_phrases(self):
         """Get purpose phrases as list."""
         return [p.strip() for p in self.purpose_phrases.split(",")]
+    
+    def apply_vad_sensitivity_preset(self, preset='medium'):
+        """
+        Apply VAD sensitivity preset.
+        
+        Args:
+            preset: 'high', 'medium', or 'low'
+        """
+        presets = {
+            'high': {
+                'vad_energy_threshold': 400,  # Very sensitive - catches faint speech
+                'vad_min_speech_duration': 80,  # Shorter minimum duration
+                'description': 'High sensitivity - detects faint/unclear speech (may have more false positives)'
+            },
+            'medium': {
+                'vad_energy_threshold': 600,  # Balanced sensitivity
+                'vad_min_speech_duration': 100,  # Standard minimum duration
+                'description': 'Medium sensitivity - balanced detection (recommended)'
+            },
+            'low': {
+                'vad_energy_threshold': 900,  # Less sensitive - only clear speech
+                'vad_min_speech_duration': 150,  # Longer minimum duration
+                'description': 'Low sensitivity - only clear speech (may miss faint audio)'
+            }
+        }
+        
+        if preset not in presets:
+            print(f"⚠️ Invalid preset '{preset}'. Using 'medium'.")
+            preset = 'medium'
+        
+        config = presets[preset]
+        self.vad_energy_threshold = config['vad_energy_threshold']
+        self.vad_min_speech_duration = config['vad_min_speech_duration']
+        self.vad_sensitivity = preset
+        
+        print(f"✅ VAD Sensitivity: {preset.upper()}")
+        print(f"   Energy Threshold: {self.vad_energy_threshold}")
+        print(f"   Min Speech Duration: {self.vad_min_speech_duration}ms")
+        print(f"   {config['description']}")
+    
+    def get_vad_parameters(self):
+        """Get current VAD parameters as tuple."""
+        return self.vad_energy_threshold, self.vad_min_speech_duration
 
 # Global settings instance
 app_settings = AppSettings()

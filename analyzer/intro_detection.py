@@ -16,18 +16,23 @@ def extract_left_channel(audio_segment):
         # Already mono, assume it's the agent channel
         return audio_segment
 
-def voice_activity_detection(audio_segment, energy_threshold=1000, min_speech_duration=100):
+def voice_activity_detection(audio_segment, energy_threshold=None, min_speech_duration=None):
     """
     Robust Voice Activity Detection (VAD) for agent speech.
     
     Args:
         audio_segment: Audio segment to analyze
-        energy_threshold: Minimum energy to consider as speech
-        min_speech_duration: Minimum duration (ms) to consider as valid speech
+        energy_threshold: Minimum energy to consider as speech (None = use config)
+        min_speech_duration: Minimum duration (ms) to consider as valid speech (None = use config)
     
     Returns:
         List of (start_ms, end_ms) tuples for speech segments
     """
+    # Use config values if not explicitly provided
+    if energy_threshold is None:
+        energy_threshold = app_settings.vad_energy_threshold
+    if min_speech_duration is None:
+        min_speech_duration = app_settings.vad_min_speech_duration
     try:
         # Convert to numpy array
         audio_array = np.array(audio_segment.get_array_of_samples(), dtype=np.float32)
@@ -141,11 +146,11 @@ def releasing_detection(agent_segment, silence_thresh=None):
     # Extract left channel (agent audio only)
     agent_channel = extract_left_channel(agent_segment)
     
-    # Apply Voice Activity Detection
+    # Apply Voice Activity Detection (uses config settings)
     speech_segments = voice_activity_detection(
         agent_channel,
-        energy_threshold=800,  # Tuned to reject noise but catch speech
-        min_speech_duration=150  # Minimum 150ms to be considered speech
+        energy_threshold=app_settings.vad_energy_threshold,
+        min_speech_duration=app_settings.vad_min_speech_duration
     )
     
     # Releasing = NO speech events detected in entire call
@@ -169,11 +174,11 @@ def late_hello_detection(agent_segment, customer_segment=None):
     # Extract left channel (agent audio only)
     agent_channel = extract_left_channel(agent_segment)
     
-    # Apply Voice Activity Detection to find all speech segments
+    # Apply Voice Activity Detection to find all speech segments (uses config settings)
     speech_segments = voice_activity_detection(
         agent_channel,
-        energy_threshold=800,  # Same threshold as releasing detection
-        min_speech_duration=150  # Minimum 150ms to be considered speech
+        energy_threshold=app_settings.vad_energy_threshold,
+        min_speech_duration=app_settings.vad_min_speech_duration
     )
     
     # Edge case: No speech at all → falls under Releasing, not Late Hello
@@ -183,8 +188,8 @@ def late_hello_detection(agent_segment, customer_segment=None):
     # Find first speech onset time
     first_speech_start_ms = speech_segments[0][0]  # Start time of first speech segment
     
-    # Late Hello threshold: 4.0 seconds = 4000 milliseconds
-    late_hello_threshold_ms = 4000.0
+    # Late Hello threshold: configurable (default 5.0 seconds)
+    late_hello_threshold_ms = app_settings.late_hello_time * 1000.0
     
     # Late Hello = first speech onset occurs AFTER 4.0 seconds
     is_late_hello = first_speech_start_ms > late_hello_threshold_ms
@@ -210,11 +215,11 @@ def debug_audio_analysis(agent_segment, file_name="Unknown"):
         # dBFS analysis
         dbfs = agent_channel.dBFS
         
-        # Apply VAD to find speech segments
+        # Apply VAD to find speech segments (uses config settings)
         speech_segments = voice_activity_detection(
             agent_channel,
-            energy_threshold=800,
-            min_speech_duration=150
+            energy_threshold=app_settings.vad_energy_threshold,
+            min_speech_duration=app_settings.vad_min_speech_duration
         )
         
         # Calculate speech statistics
