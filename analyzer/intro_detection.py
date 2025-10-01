@@ -2,6 +2,8 @@ from pydub import AudioSegment
 import numpy as np
 from pydub.silence import detect_silence
 from config import app_settings
+from scipy import signal
+from scipy.fft import rfft, rfftfreq
 
 def extract_left_channel(audio_segment):
     """
@@ -16,14 +18,85 @@ def extract_left_channel(audio_segment):
         # Already mono, assume it's the agent channel
         return audio_segment
 
-def voice_activity_detection(audio_segment, energy_threshold=None, min_speech_duration=None):
+def estimate_noise_floor(audio_array, frame_rate, percentile=10):
     """
-    Robust Voice Activity Detection (VAD) for agent speech.
+    Estimate adaptive noise floor from audio signal.
+    Uses the lower percentile of frame energies to determine baseline noise.
+    
+    Args:
+        audio_array: Normalized audio array
+        frame_rate: Sample rate
+        percentile: Percentile to use for noise floor (default 10th percentile)
+    
+    Returns:
+        Noise floor energy level
+    """
+    frame_length = int(0.05 * frame_rate)  # 50ms frames
+    hop_length = int(0.025 * frame_rate)   # 25ms hop
+    
+    frame_energies = []
+    for i in range(0, len(audio_array) - frame_length, hop_length):
+        frame = audio_array[i:i + frame_length]
+        rms = np.sqrt(np.mean(frame**2)) * 32767
+        frame_energies.append(rms)
+    
+    if len(frame_energies) == 0:
+        return 0
+    
+    # Use percentile to estimate noise floor
+    noise_floor = np.percentile(frame_energies, percentile)
+    return noise_floor
+
+
+def calculate_spectral_features(frame, frame_rate):
+    """
+    Calculate spectral features to distinguish speech from noise.
+    
+    Args:
+        frame: Audio frame (numpy array)
+        frame_rate: Sample rate
+    
+    Returns:
+        dict with spectral_centroid, spectral_bandwidth, spectral_rolloff
+    """
+    try:
+        # Compute FFT
+        fft_vals = np.abs(rfft(frame))
+        fft_freqs = rfftfreq(len(frame), 1.0 / frame_rate)
+        
+        # Avoid division by zero
+        if np.sum(fft_vals) == 0:
+            return {'centroid': 0, 'bandwidth': 0, 'rolloff': 0}
+        
+        # Spectral centroid (center of mass of spectrum)
+        centroid = np.sum(fft_freqs * fft_vals) / np.sum(fft_vals)
+        
+        # Spectral bandwidth (spread around centroid)
+        bandwidth = np.sqrt(np.sum(((fft_freqs - centroid) ** 2) * fft_vals) / np.sum(fft_vals))
+        
+        # Spectral rolloff (frequency below which 85% of energy is contained)
+        cumsum = np.cumsum(fft_vals)
+        rolloff_idx = np.where(cumsum >= 0.85 * cumsum[-1])[0]
+        rolloff = fft_freqs[rolloff_idx[0]] if len(rolloff_idx) > 0 else 0
+        
+        return {
+            'centroid': centroid,
+            'bandwidth': bandwidth,
+            'rolloff': rolloff
+        }
+    except:
+        return {'centroid': 0, 'bandwidth': 0, 'rolloff': 0}
+
+
+def voice_activity_detection(audio_segment, energy_threshold=None, min_speech_duration=None, use_adaptive=True):
+    """
+    Enhanced Voice Activity Detection (VAD) with adaptive noise floor and spectral analysis.
     
     Args:
         audio_segment: Audio segment to analyze
         energy_threshold: Minimum energy to consider as speech (None = use config)
         min_speech_duration: Minimum duration (ms) to consider as valid speech (None = use config)
+        use_adaptive: Use adaptive noise floor estimation (default True)
     
     Returns:
         List of (start_ms, end_ms) tuples for speech segments
@@ -44,6 +117,15 @@ def voice_activity_detection(audio_segment, energy_threshold=None, min_speech_du
         if np.max(np.abs(audio_array)) > 0:
             audio_array = audio_array / np.max(np.abs(audio_array))
         
+        # Estimate adaptive noise floor
+        if use_adaptive:
+            noise_floor = estimate_noise_floor(audio_array, audio_segment.frame_rate)
+            # Set adaptive threshold: noise floor + margin
+            adaptive_threshold = noise_floor + (energy_threshold * 0.3)  # 30% above noise floor
+            effective_threshold = max(adaptive_threshold, energy_threshold * 0.7)  # At least 70% of config
+        else:
+            effective_threshold = energy_threshold
+        
         # Calculate frame-based energy (50ms frames with 25ms overlap)
         frame_length = int(0.05 * audio_segment.frame_rate)  # 50ms
         hop_length = int(0.025 * audio_segment.frame_rate)   # 25ms
@@ -59,14 +141,31 @@ def voice_activity_detection(audio_segment, energy_threshold=None, min_speech_du
             # Calculate zero crossing rate (helps distinguish speech from noise)
             zcr = np.sum(np.diff(np.sign(frame)) != 0) / len(frame)
             
-            # Speech detection criteria:
-            # 1. Energy above threshold
+            # Calculate spectral features
+            spectral = calculate_spectral_features(frame, audio_segment.frame_rate)
+            
+            # Enhanced speech detection criteria:
+            # 1. Energy above adaptive threshold
             # 2. ZCR in typical speech range (0.01 to 0.3)
-            # 3. Not just a single spike (check neighboring frames)
+            # 3. Spectral centroid in speech range (300-3000 Hz)
+            # 4. Spectral bandwidth indicates complex signal (not pure tone)
+            # 5. Spectral rolloff in reasonable range
+            
+            energy_check = rms_energy > effective_threshold
+            zcr_check = 0.01 < zcr < 0.3
+            
+            # Spectral checks to reject tonal noise (hum, airflow)
+            centroid_check = 300 < spectral['centroid'] < 3500  # Speech frequency range
+            bandwidth_check = spectral['bandwidth'] > 200  # Not a pure tone
+            rolloff_check = spectral['rolloff'] < 4000  # Reasonable upper frequency
+            
+            # Combine criteria: energy + ZCR + at least 2 of 3 spectral checks
+            spectral_score = sum([centroid_check, bandwidth_check, rolloff_check])
             
             is_speech = (
-                rms_energy > energy_threshold and
-                0.01 < zcr < 0.3
+                energy_check and
+                zcr_check and
+                spectral_score >= 2  # At least 2 spectral features must pass
             )
             
             speech_frames.append(is_speech)
@@ -136,24 +235,44 @@ def releasing_detection(agent_segment, silence_thresh=None):
     """
     Returns 'Yes' if agent channel contains no speech events for entire call duration.
     
-    Specification:
+    Business Rules:
     - Analyze only the left channel (agent audio)
     - Apply robust VAD tuned to reject line noise, hum, static
-    - Zero or near-zero energy across entire left channel = Releasing
+    - Calls shorter than 4 seconds CANNOT be classified as releasing (insufficient duration)
+    - If speech is detected, cannot be releasing regardless of call length
     - Must be 100% deterministic
+    
+    Args:
+        agent_segment: Full audio segment (stereo or mono)
+        silence_thresh: Optional silence threshold (unused, kept for compatibility)
+    
+    Returns:
+        'Yes' if releasing, 'No' otherwise
     """
     
     # Extract left channel (agent audio only)
     agent_channel = extract_left_channel(agent_segment)
     
+    # Get call duration in seconds
+    call_duration_s = len(agent_channel) / 1000.0
+    
+    # Business Rule: Calls shorter than 4 seconds cannot be classified as releasing
+    # Minimum duration required for reliable releasing detection
+    MIN_DURATION_FOR_RELEASING = app_settings.late_hello_time  # Use same threshold (4-5s)
+    
+    if call_duration_s < MIN_DURATION_FOR_RELEASING:
+        # Too short to determine releasing - classify as "No" (not releasing)
+        return "No"
+    
     # Apply Voice Activity Detection (uses config settings)
     speech_segments = voice_activity_detection(
         agent_channel,
         energy_threshold=app_settings.vad_energy_threshold,
-        min_speech_duration=app_settings.vad_min_speech_duration
+        min_speech_duration=app_settings.vad_min_speech_duration,
+        use_adaptive=True  # Use adaptive noise floor
     )
     
-    # Releasing = NO speech events detected in entire call
+    # Releasing = NO speech events detected in entire call (and call is long enough)
     is_releasing = len(speech_segments) == 0
     
     return "Yes" if is_releasing else "No"
@@ -178,7 +297,8 @@ def late_hello_detection(agent_segment, customer_segment=None):
     speech_segments = voice_activity_detection(
         agent_channel,
         energy_threshold=app_settings.vad_energy_threshold,
-        min_speech_duration=app_settings.vad_min_speech_duration
+        min_speech_duration=app_settings.vad_min_speech_duration,
+        use_adaptive=True  # Use adaptive noise floor
     )
     
     # Edge case: No speech at all → falls under Releasing, not Late Hello
@@ -219,7 +339,8 @@ def debug_audio_analysis(agent_segment, file_name="Unknown"):
         speech_segments = voice_activity_detection(
             agent_channel,
             energy_threshold=app_settings.vad_energy_threshold,
-            min_speech_duration=app_settings.vad_min_speech_duration
+            min_speech_duration=app_settings.vad_min_speech_duration,
+            use_adaptive=True  # Use adaptive noise floor
         )
         
         # Calculate speech statistics

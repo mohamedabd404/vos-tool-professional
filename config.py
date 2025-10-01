@@ -104,7 +104,7 @@ class AppSettings:
         # Lower values = more sensitive (detects fainter speech)
         # Higher values = less sensitive (rejects more noise)
         self.vad_energy_threshold = 600  # RMS energy threshold (default: 600, was 800)
-        self.vad_min_speech_duration = 100  # Minimum speech duration in ms (default: 100, was 150)
+        self.vad_min_speech_duration = 120  # Minimum speech duration in ms (default: 120, optimized to reduce noise)
         
         # Sensitivity presets for easy adjustment
         # 'high' = detects faint/unclear speech (more false positives)
@@ -158,13 +158,13 @@ class AppSettings:
         presets = {
             'high': {
                 'vad_energy_threshold': 400,  # Very sensitive - catches faint speech
-                'vad_min_speech_duration': 80,  # Shorter minimum duration
+                'vad_min_speech_duration': 100,  # Shorter minimum duration
                 'description': 'High sensitivity - detects faint/unclear speech (may have more false positives)'
             },
             'medium': {
                 'vad_energy_threshold': 600,  # Balanced sensitivity
-                'vad_min_speech_duration': 100,  # Standard minimum duration
-                'description': 'Medium sensitivity - balanced detection (recommended)'
+                'vad_min_speech_duration': 120,  # Standard minimum duration (optimized)
+                'description': 'Medium sensitivity - balanced detection with noise rejection (recommended)'
             },
             'low': {
                 'vad_energy_threshold': 900,  # Less sensitive - only clear speech
