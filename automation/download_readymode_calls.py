@@ -61,6 +61,14 @@ def login_to_readymode(driver, wait, dialer_url):
 
 # Example function to save a downloaded file for a user
 
+def format_agent_name_for_filename(agent_name):
+    """
+    Format agent name for use in filenames (remove spaces for filesystem compatibility)
+    but keep the original format for display purposes.
+    """
+    # Remove spaces for filename to avoid filesystem issues
+    return agent_name.strip().replace(" ", "")
+
 def save_downloaded_file(username, filename, file_bytes, record_type='Agent'):
     today = datetime.now().strftime('%Y-%m-%d')
     base_folder = f"Recordings/{record_type}/{username}/{today}"
@@ -312,7 +320,8 @@ def download_all_call_recordings(dialer_url, agent, update_callback=None,
                 for block in blocks:
                     try:
                         file_text = block.find_element(By.CSS_SELECTOR, "span[repvar='File']").text
-                        agent_text = block.find_element(By.CSS_SELECTOR, "span[repvar='User']").text.strip().replace(" ", "")
+                        # Keep original agent name with spaces (don't remove spaces here)
+                        agent_text = block.find_element(By.CSS_SELECTOR, "span[repvar='User']").text.strip()
                         href = block.find_element(By.CSS_SELECTOR, "a[href*='.mp3']").get_attribute("href")
                         if not href.startswith("http"):
                             href = dialer_url.rstrip("/") + "/" + href.lstrip("/")
@@ -332,7 +341,8 @@ def download_all_call_recordings(dialer_url, agent, update_callback=None,
 
                     phone_match = re.search(r"\(?\d{3}\)?[-\s]?\d{3}[-\s]?\d{4}", file_text)
                     phone_number = phone_match.group(0) if phone_match else f"unknown_{attempted}"
-                    filename = f"{agent_name}_({phone_number}).mp3"
+                    # Use formatted name (no spaces) for filename only
+                    filename = f"{format_agent_name_for_filename(agent_name)}_({phone_number}).mp3"
                     filepath = os.path.join(DOWNLOAD_DIR, filename)
 
                     print(f"⬇️ Attempting download {attempted}: {filename}")
@@ -411,7 +421,8 @@ def download_all_call_recordings(dialer_url, agent, update_callback=None,
                 for block in blocks:
                     try:
                         file_text = block.find_element(By.CSS_SELECTOR, "span[repvar='File']").text
-                        agent_text = block.find_element(By.CSS_SELECTOR, "span[repvar='User']").text.strip().replace(" ", "")
+                        # Keep original agent name with spaces (don't remove spaces here)
+                        agent_text = block.find_element(By.CSS_SELECTOR, "span[repvar='User']").text.strip()
                         href = block.find_element(By.CSS_SELECTOR, "a[href*='.mp3']").get_attribute("href")
                         if not href.startswith("http"):
                             href = dialer_url.rstrip("/") + "/" + href.lstrip("/")
@@ -430,7 +441,8 @@ def download_all_call_recordings(dialer_url, agent, update_callback=None,
 
                     phone_match = re.search(r"\(?\d{3}\)?[-\s]?\d{3}[-\s]?\d{4}", file_text)
                     phone_number = phone_match.group(0) if phone_match else f"unknown_{attempted}"
-                    filename = f"{agent_name}_({phone_number}).mp3"
+                    # Use formatted name (no spaces) for filename only
+                    filename = f"{format_agent_name_for_filename(agent_name)}_({phone_number}).mp3"
                     filepath = os.path.join(DOWNLOAD_DIR, filename)
 
                     try:

@@ -5,11 +5,36 @@ Eliminates duplication and ensures consistent behavior across all modules.
 """
 
 import time
+import re
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import numpy as np
 from pydub import AudioSegment
 from analyzer.intro_detection import releasing_detection, late_hello_detection, debug_audio_analysis
+
+
+def format_agent_name_with_spaces(agent_name: str) -> str:
+    """
+    Convert agent names from formats like 'AbdelrahmanAhmedIbrahimHassan' 
+    to 'Abdelrahman Ahmed Ibrahim Hassan' by adding spaces before capital letters.
+    
+    This handles names that were stored without spaces in filenames.
+    
+    Args:
+        agent_name: Agent name without spaces (e.g., 'JohnSmith' or 'AbdelrahmanAhmed')
+        
+    Returns:
+        Agent name with spaces (e.g., 'John Smith' or 'Abdelrahman Ahmed')
+    """
+    # If name already has spaces, return as-is
+    if ' ' in agent_name:
+        return agent_name
+    
+    # Add space before each capital letter (except the first one)
+    # This handles camelCase like 'JohnSmith' -> 'John Smith'
+    spaced_name = re.sub(r'(?<!^)(?=[A-Z])', ' ', agent_name)
+    
+    return spaced_name
 
 
 class AudioProcessor:
@@ -144,14 +169,17 @@ class AudioProcessor:
         if "_" in stem:
             parts = stem.split("_", 1)
             if len(parts) == 2:
-                agent_name, phone_number = parts
+                agent_name_raw, phone_number = parts
             else:
-                agent_name, phone_number = stem, ""
+                agent_name_raw, phone_number = stem, ""
         else:
-            agent_name, phone_number = stem, ""
+            agent_name_raw, phone_number = stem, ""
         
-        # Clean up agent name
-        agent_name = agent_name.replace(" ", "").replace("-", "").replace(".", "")
+        # Clean up agent name - remove special characters but keep the structure
+        agent_name_raw = agent_name_raw.replace("-", "").replace(".", "")
+        
+        # Format agent name with proper spacing (converts 'JohnSmith' to 'John Smith')
+        agent_name = format_agent_name_with_spaces(agent_name_raw)
         
         # Validate file
         if not self.is_valid_audio_file(file_path):
