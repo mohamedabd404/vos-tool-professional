@@ -134,6 +134,7 @@ def download_all_call_recordings(dialer_url, agent, update_callback=None,
 
         # Agent Filter - Enhanced with multiple selection strategies
         if agent and agent.strip().lower() != "any":
+            agent_selected = False
             try:
                 print(f"🔍 Attempting to select agent: '{agent}'")
                 dropdown = wait.until(EC.presence_of_element_located((By.ID, "restrict_uid")))
@@ -141,41 +142,71 @@ def download_all_call_recordings(dialer_url, agent, update_callback=None,
                 
                 # Get all available options for debugging
                 available_options = [opt.text.strip() for opt in select.options]
-                print(f"📋 Available agents in dropdown: {available_options[:5]}...")  # Show first 5
+                print(f"📋 Available agents in dropdown ({len(available_options)} total):")
+                print(f"   {available_options[:10]}")  # Show first 10
                 
                 # Strategy 1: Try exact match (original method)
                 try:
                     select.select_by_visible_text(agent.strip())
+                    agent_selected = True
                     print(f"✅ Agent selected (exact match): {agent}")
-                except:
-                    print(f"⚠️ Exact match failed, trying partial match...")
+                except Exception as e1:
+                    print(f"⚠️ Exact match failed: {type(e1).__name__}")
                     
                     # Strategy 2: Try partial match (case-insensitive)
                     agent_lower = agent.strip().lower()
                     matched = False
+                    print(f"🔍 Searching for partial match containing: '{agent_lower}'")
+                    
                     for option in select.options:
-                        if agent_lower in option.text.strip().lower():
-                            select.select_by_visible_text(option.text.strip())
-                            print(f"✅ Agent selected (partial match): {option.text.strip()}")
-                            matched = True
-                            break
+                        option_text = option.text.strip()
+                        if agent_lower in option_text.lower():
+                            try:
+                                select.select_by_visible_text(option_text)
+                                agent_selected = True
+                                matched = True
+                                print(f"✅ Agent selected (partial match): '{option_text}'")
+                                break
+                            except Exception as e2:
+                                print(f"⚠️ Failed to select '{option_text}': {e2}")
+                                continue
                     
                     if not matched:
                         # Strategy 3: Try by value instead of text
+                        print(f"🔍 Trying to select by value: '{agent.strip()}'")
                         try:
                             select.select_by_value(agent.strip())
+                            agent_selected = True
                             print(f"✅ Agent selected (by value): {agent}")
-                        except:
-                            print(f"❌ Could not select agent '{agent}' - will download all agents")
-                            print(f"💡 Available options: {', '.join(available_options[:10])}")
+                        except Exception as e3:
+                            print(f"❌ All selection strategies failed!")
+                            print(f"   - Exact match: Failed")
+                            print(f"   - Partial match: No matches found")
+                            print(f"   - By value: {type(e3).__name__}")
+                            print(f"💡 Available options: {', '.join(available_options[:15])}")
+                            print(f"⚠️ Will continue downloading ALL agents (no filter applied)")
                 
-                # Wait for page to update after selection
-                time.sleep(2)
-                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='.mp3']")))
+                # Verify selection worked
+                if agent_selected:
+                    selected_value = select.first_selected_option.text
+                    print(f"✔️ Verified selection: '{selected_value}'")
+                    
+                    # Wait for page to update after selection
+                    print("⏳ Waiting for page to refresh with filtered results...")
+                    time.sleep(3)  # Increased wait time
+                    
+                    # Try to wait for MP3 links, but don't fail if none exist
+                    try:
+                        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='.mp3']")))
+                        print("✅ Page updated with filtered results")
+                    except:
+                        print("⚠️ No MP3 links found for this agent - they may have no recordings")
+                else:
+                    print("⚠️ No agent filter applied - will download from all agents")
                 
             except Exception as e:
-                print(f"[!] Error selecting agent '{agent}': {str(e)}")
-                print(f"⚠️ Continuing with all agents...")
+                print(f"[!] Critical error in agent selection: {type(e).__name__}: {str(e)}")
+                print(f"⚠️ Continuing without agent filter...")
 
         # Disposition Filter (HYBRID: UI interaction)
         if disposition:
