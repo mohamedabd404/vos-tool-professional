@@ -277,17 +277,26 @@ def releasing_detection(agent_segment, silence_thresh=None):
     
     return "Yes" if is_releasing else "No"
 
-# Late Hello Detection - Agent first speaks after 4.0 seconds (100% deterministic)
-def late_hello_detection(agent_segment, customer_segment=None):
+# Late Hello Detection - Agent first speaks after 5.0 seconds (100% deterministic)
+def late_hello_detection(agent_segment, customer_segment=None, debug=False):
     """
-    Returns 'Yes' if first speech onset in agent channel occurs after 4.0 seconds from call start.
+    Returns 'Yes' if first speech onset in agent channel occurs after 5.0 seconds from call start.
     
     Specification:
     - Analyze only the left channel (agent audio)
     - Timestamp speech onset with sub-second precision
     - If no speech occurs at all → falls under Releasing, not Late Hello
-    - If speech starts ≤ 4.0s → no classification (normal)
+    - If speech starts ≤ 5.0s → no classification (normal)
+    - If speech starts > 5.0s → Late Hello
     - Must be 100% deterministic
+    
+    Args:
+        agent_segment: Audio segment containing agent audio
+        customer_segment: Not used (kept for compatibility)
+        debug: If True, print detailed debug information
+    
+    Returns:
+        "Yes" if late hello detected, "No" otherwise
     """
     
     # Extract left channel (agent audio only)
@@ -303,16 +312,28 @@ def late_hello_detection(agent_segment, customer_segment=None):
     
     # Edge case: No speech at all → falls under Releasing, not Late Hello
     if len(speech_segments) == 0:
+        if debug:
+            print("⚠️ Late Hello: No speech detected at all (falls under Releasing)")
         return "No"  # Not Late Hello (it's Releasing)
     
     # Find first speech onset time
     first_speech_start_ms = speech_segments[0][0]  # Start time of first speech segment
+    first_speech_start_s = first_speech_start_ms / 1000.0
     
     # Late Hello threshold: configurable (default 5.0 seconds)
     late_hello_threshold_ms = app_settings.late_hello_time * 1000.0
+    late_hello_threshold_s = app_settings.late_hello_time
     
-    # Late Hello = first speech onset occurs AFTER 4.0 seconds
+    # Late Hello = first speech onset occurs AFTER 5.0 seconds
     is_late_hello = first_speech_start_ms > late_hello_threshold_ms
+    
+    if debug:
+        print(f"\n🔍 Late Hello Detection Debug:")
+        print(f"   First speech detected at: {first_speech_start_s:.2f}s ({first_speech_start_ms:.0f}ms)")
+        print(f"   Late hello threshold: {late_hello_threshold_s:.1f}s ({late_hello_threshold_ms:.0f}ms)")
+        print(f"   Total speech segments found: {len(speech_segments)}")
+        print(f"   First 3 segments: {[(round(s/1000, 2), round(e/1000, 2)) for s, e in speech_segments[:3]]}")
+        print(f"   Result: {'LATE HELLO' if is_late_hello else 'NORMAL (on time)'}")
     
     return "Yes" if is_late_hello else "No"
 
