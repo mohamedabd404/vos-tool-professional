@@ -44,15 +44,15 @@ Wend
 
 ' Display result
 If urlFound Then
+    ' Copy URL to clipboard FIRST (before showing message)
+    objShell.Run "powershell.exe -Command ""Set-Clipboard -Value '" & url & "'""", 0, True
+    
     ' Show the URL in a message box
     MsgBox "VOS Tool is now running!" & vbCrLf & vbCrLf & _
            "Access URL: " & url & vbCrLf & vbCrLf & _
-           "This URL has been copied to your clipboard." & vbCrLf & vbCrLf & _
+           "URL copied to clipboard - just paste it!" & vbCrLf & vbCrLf & _
            "Share this URL with your users.", _
            vbInformation, "VOS Tool Started"
-    
-    ' Copy URL to clipboard
-    objShell.Run "cmd /c echo " & url & " | clip", 0, True
 Else
     MsgBox "VOS Tool started, but could not capture the Cloudflared URL." & vbCrLf & vbCrLf & _
            "Check the logs at C:\temp\cloudflared.log" & vbCrLf & vbCrLf & _
